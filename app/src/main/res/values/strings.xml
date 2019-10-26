@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Firebase_auth_firestore</string>
+    <string name="dica_login">Digite seu login</string>
+    <string name="dica_senha">Digite sua senha</string>
+    <string name="quero_me_cadastrar">Quero me cadastrar</string>
+    <string name="data_nome">Em %s, %s diz:</string>
+    <string name="digite_sua_mensagem">Digite a sua mensagem</string>
+    <string name="lat_long">Lat: %f Long: %f</string>
+    <string name="no_gps_no_app">É necessário o uso do GPS</string>
+    <string name="no_email_no_pic">Sem email, sem foto</string>
+    <string name="cant_take_pic">Não é possivel tirar fotos</string>
+    <string name="no_pic_taken">A foto nao foi tirada</string>
+</resources>
