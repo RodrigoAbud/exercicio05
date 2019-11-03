@@ -14,14 +14,14 @@ class Mensagem implements Comparable <Mensagem> {
     private String texto;
     private Date date;
     private String email;
-    private boolean tipoMsg;
+    private int tipoMsg;
     //private ImageView photo;
 
     public Mensagem () {
 
     }
 
-    public Mensagem(String texto, Date date, String email, boolean tipoMsg/*, ImageView photo*/) {
+    public Mensagem(String texto, Date date, String email, int tipoMsg/*, ImageView photo*/) {
         this.texto = texto;
         this.date = date;
         this.email = email;
@@ -41,7 +41,7 @@ class Mensagem implements Comparable <Mensagem> {
         return email;
     }
 
-    public boolean getTipoMsg() { return tipoMsg; }
+    public int getTipoMsg() { return tipoMsg; }
 
     //public ImageView getPhoto() { return photo; }
 
@@ -57,7 +57,7 @@ class Mensagem implements Comparable <Mensagem> {
         this.email = email;
     }
 
-    public void setTipoMsg(boolean tipoMsg) {
+    public void setTipoMsg(int tipoMsg) {
         this.tipoMsg = tipoMsg;
     }
 

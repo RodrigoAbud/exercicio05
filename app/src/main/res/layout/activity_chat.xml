@@ -41,16 +41,16 @@
             android:tint="@color/common_google_signin_btn_text_dark_focused"
             android:onClick="enviarLocalizacao"
             app:srcCompat="@android:drawable/ic_menu_mylocation" />
-<!--
-                <ImageView
-                    android:id="@+id/photoImageView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:tint="@color/common_google_signin_btn_text_dark_focused"
-                    android:onClick="enviarImagem"
-                    app:srcCompat="@android:drawable/ic_menu_camera" />
--->
+
+        <ImageView
+            android:id="@+id/photoImageView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:tint="@color/common_google_signin_btn_text_dark_focused"
+            android:onClick="enviarImagem"
+            app:srcCompat="@android:drawable/ic_menu_camera" />
+
         <Button
             android:layout_width="0dp"
             android:layout_height="wrap_content"

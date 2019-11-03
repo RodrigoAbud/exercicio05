@@ -3,6 +3,7 @@ package br.com.abud.firebase_auth_firestore;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -12,11 +13,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -42,8 +47,10 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -65,13 +72,12 @@ public class ChatActivity extends AppCompatActivity {
     private LocationManager locationManager;
     private LocationListener locationListener;
     private static final int REQUEST_PERMISSION_COD_GPS = 1001;
-
-    //private int type = 0;
+    private static final int REQ_COD_CAMERA = 1001;
 
     private void setupFirebase (){
         fireUser = FirebaseAuth.getInstance().getCurrentUser();
         //Observavel
-        collMensagensReferences = FirebaseFirestore.getInstance().collection("mensagens");
+        collMensagensReferences = FirebaseFirestore.getInstance().collection("mensagem");
         //Observador
         collMensagensReferences.addSnapshotListener((result, e) -> {
             mensagens.clear();
@@ -167,47 +173,84 @@ public class ChatActivity extends AppCompatActivity {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void enviarMensagem(View view) {
-        //type = 1;
         String texto = mensagemEdittext.getText().toString();
-        Mensagem m = new Mensagem(texto, new java.util.Date(),fireUser.getEmail(),false);
+        Mensagem m = new Mensagem(texto, new java.util.Date(),fireUser.getEmail(),2);
         collMensagensReferences.add(m);
         mensagemEdittext.setText("");
     }
 
     //location
     public void enviarLocalizacao(View view) {
-        //type = 2;
         String localizacao = getString(R.string.lat_long,latitude,longitude);
-        Mensagem m = new Mensagem(localizacao, new java.util.Date(),fireUser.getEmail(), true);
+        Mensagem m = new Mensagem(localizacao, new java.util.Date(),fireUser.getEmail(), 1);
         collMensagensReferences.add(m);
         mensagemEdittext.setText("");
     }
-/*
+
     //image
     public void enviarImagem(View view) {
-        type = 2;
-        String localizacao = getString(R.string.lat_long,latitude,longitude);
-        Mensagem m = new Mensagem(localizacao, new java.util.Date(),fireUser.getEmail(), true);
-        collMensagensReferences.add(m);
-        mensagemEdittext.setText("");
-    }*/
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if(intent.resolveActivity(getPackageManager()) != null){
+            startActivityForResult(intent, REQ_COD_CAMERA);
+        }else{
+            Toast.makeText(ChatActivity.this, getString(R.string.cant_take_pic), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode){
+            case REQ_COD_CAMERA:
+                if(resultCode != RESULT_OK){
+                    Toast.makeText(this, getString(R.string.cant_take_pic), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                Bitmap picture = (Bitmap)data.getExtras().get("data");
+                Date date = new Date();
+
+                String mensagem = DateHelper.format(date).replace("/", "-") + ".jpg";
+                Mensagem m = new Mensagem (mensagem, date, fireUser.getEmail(), 3);
+
+                StorageReference pictureStorageReference = FirebaseStorage.getInstance()
+                        .getReference(
+                                String.format(
+                                        Locale.getDefault(),
+                                        "mensagens/%s/%s",
+                                        m.getEmail().replace("@", ""),
+                                        m.getTexto()));
+
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                picture.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+                byte[] bytes = baos.toByteArray();
+
+                pictureStorageReference.putBytes(bytes);
+
+                collMensagensReferences.add(m);
+
+                break;
+        }
+
+    }
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class ChatViewHolder extends RecyclerView.ViewHolder {
     public TextView dataNomeTextView;
     public TextView mensagemTextView;
-    public ImageView pictureImageView;
+    public ImageView profileImageView;
     public ImageView abrirMapaButton;
-    //public ImageView sendedImage;
+    public ImageView sendedImage;
 
     public ChatViewHolder(View raiz) {
         super(raiz);
         dataNomeTextView = raiz.findViewById(R.id.dataNomeTextView);
         mensagemTextView = raiz.findViewById(R.id.mensagemTextView);
-        pictureImageView = raiz.findViewById(R.id.profilePicImageView);
+        profileImageView = raiz.findViewById(R.id.profilePicImageView);
         abrirMapaButton = raiz.findViewById(R.id.abrirMapaButton);
-        //sendedImage = raiz.findViewById(R.id.sendedImage);
+        sendedImage = raiz.findViewById(R.id.sendedImage);
     }
 }
 
@@ -235,7 +278,7 @@ class ChatAdapter extends RecyclerView.Adapter<ChatViewHolder>{
     @Override
     public void onBindViewHolder(@NonNull ChatViewHolder holder, int position) {
         Mensagem m = mensagens.get(position);
-        if (m.getTipoMsg()){
+        if (m.getTipoMsg() == 1){
             holder.dataNomeTextView.setText(
                     context.getString(R.string.data_nome,
                             DateHelper.format(m.getDate()),
@@ -246,15 +289,78 @@ class ChatAdapter extends RecyclerView.Adapter<ChatViewHolder>{
                 Intent intent = new Intent(Intent.ACTION_VIEW,uri);
                 intent.setPackage("com.google.android.apps.maps");
                 context.startActivity(intent);
-                holder.abrirMapaButton.setVisibility(View.VISIBLE);
             });
-        }else {
+            holder.abrirMapaButton.setVisibility(View.VISIBLE);
+            holder.mensagemTextView.setVisibility(View.VISIBLE);
+            holder.sendedImage.setVisibility(View.INVISIBLE);
+        }else if (m.getTipoMsg() == 2){
             holder.dataNomeTextView.setText(
                     context.getString(R.string.data_nome,
                             DateHelper.format(m.getDate()),
                             m.getEmail()));
             holder.mensagemTextView.setText(m.getTexto());
             holder.abrirMapaButton.setVisibility(View.INVISIBLE);
+            holder.mensagemTextView.setVisibility(View.VISIBLE);
+            holder.sendedImage.setVisibility(View.INVISIBLE);
+        }else{
+            holder.abrirMapaButton.setVisibility(View.INVISIBLE);
+            holder.mensagemTextView.setVisibility(View.INVISIBLE);
+            holder.sendedImage.setVisibility(View.VISIBLE);
+            holder.dataNomeTextView.setText(
+                    context.getString(R.string.data_nome,
+                            DateHelper.format(m.getDate()),
+                            m.getEmail()));
+            StorageReference pictureStorageReference = FirebaseStorage.getInstance()
+                    .getReference(
+                            String.format(
+                                    Locale.getDefault(),
+                                    "mensagens/%s/%s",
+                                    m.getEmail().replace("@", ""),
+                                    m.getTexto()));
+
+            pictureStorageReference.getDownloadUrl()
+                    .addOnSuccessListener((result) -> {
+
+                        Glide.with(context).
+                                asBitmap().addListener(new RequestListener<Bitmap>() {
+                            @Override
+                            public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Bitmap> target, boolean isFirstResource) {
+                                return false;
+                            }
+
+                            @Override
+                            public boolean onResourceReady(Bitmap resource, Object model, Target<Bitmap> target, DataSource dataSource, boolean isFirstResource) {
+                                holder.sendedImage.setImageBitmap(resource);
+
+
+
+                                holder.sendedImage.setOnClickListener(v ->{
+                                    Intent intent = new Intent(context, FullImageActivity.class);
+                                    Drawable figura = ((AppCompatImageView) v).getDrawable();
+
+                                    Bitmap bitmap = ((BitmapDrawable)figura).getBitmap();
+                                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos);
+                                    byte[] b = baos.toByteArray();
+
+                                    intent.putExtra("figura", b);
+                                    context.startActivity(intent);
+
+                                });
+
+                                return true;
+                            }
+                        }).
+                                load(pictureStorageReference).
+                                into(holder.sendedImage);
+
+                    })
+                    .addOnFailureListener((exception) -> {
+
+                        holder.sendedImage.setImageResource(R.drawable.ic_person_black_50dp);
+
+                    });
+
         }
 
 
@@ -263,7 +369,7 @@ class ChatAdapter extends RecyclerView.Adapter<ChatViewHolder>{
                         m.getEmail().replace("@",""))
         );
         if (fotos.containsKey(m.getEmail())){
-            holder.pictureImageView.setImageBitmap(fotos.get(m.getEmail()));
+            holder.profileImageView.setImageBitmap(fotos.get(m.getEmail()));
         }else {
             pictureStorageReference.getDownloadUrl().addOnSuccessListener(
                     (result) -> {
@@ -280,12 +386,12 @@ class ChatAdapter extends RecyclerView.Adapter<ChatViewHolder>{
                                 return true;
                             }
                         }).
-                                load(pictureStorageReference).into(holder.pictureImageView);
+                                load(pictureStorageReference).into(holder.profileImageView);
                     }
             )
                     .addOnFailureListener(
                             (exeption) -> {
-                                holder.pictureImageView.setImageResource(R.drawable.ic_person_black_50dp);
+                                holder.profileImageView.setImageResource(R.drawable.ic_person_black_50dp);
                             }
                     );
         }
@@ -296,9 +402,5 @@ class ChatAdapter extends RecyclerView.Adapter<ChatViewHolder>{
         return mensagens.size();
     }
 }
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Tentativa de adapter para duas views diferentes//////////////////////////////////////////////////
-
-
 
 
